@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Emoji Light Race</title>
+  <title>Emoji Light Racer</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="loading-screen">
-    <h1>🦝 Emoji Light Race</h1>
+    <h1>🦝 Emoji Light Racer</h1>
     <form id="player-form">
       <label>Number of players (2-4): <input type="number" min="2" max="4" id="player-count" value="2" required /></label>
       <div id="players-config"></div>
@@ -21,6 +21,9 @@
     <div id="countdown"></div>
     <div id="scoreboard"></div>
   </div>
+
+  <audio id="explode-sfx" src="sounds/explode.mp3" preload="auto"></audio>
+  <audio id="win-sfx" src="sounds/win.mp3" preload="auto"></audio>
 
   <script src="game.js"></script>
 </body>
