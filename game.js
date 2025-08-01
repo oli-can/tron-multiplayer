@@ -1,88 +1,86 @@
-const TILE_SIZE = 20;
-const GRID_SIZE = 40;
+const TILE = 20;
+const GRID = 40;
 const SPEED = 2; // tiles per second
-const UPDATE_INTERVAL = 1000 / SPEED;
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const form = document.getElementById('player-form');
-const playerConfigDiv = document.getElementById('players-config');
-const loadingScreen = document.getElementById('loading-screen');
-const gameContainer = document.getElementById('game-container');
-const scoreboardDiv = document.getElementById('scoreboard');
+const loading = document.getElementById('loading-screen');
+const gameUI = document.getElementById('game-container');
+const config = document.getElementById('players-config');
 const countdownDiv = document.getElementById('countdown');
+const scoreboard = document.getElementById('scoreboard');
 
+const explodeSFX = document.getElementById('explode-sfx');
+const winSFX = document.getElementById('win-sfx');
+
+const emojiList = ["🦝", "🐸", "🐱", "🐶", "🐵", "🐧", "🐯"];
+let trails = new Set();
 let players = [];
 let scores = {};
-let trails = new Set();
 let intervalId;
 
-const emojiOptions = ["🦝", "🐸", "🐱", "🐶", "🐵", "🐧", "🐯"];
+form.playerCount.addEventListener("change", updateInputs);
+form.addEventListener("submit", initGame);
+updateInputs();
 
-form.playerCount.addEventListener("change", updatePlayerInputs);
-form.addEventListener("submit", startGame);
-
-function updatePlayerInputs() {
-  playerConfigDiv.innerHTML = "";
+function updateInputs() {
+  config.innerHTML = "";
   const count = parseInt(form.playerCount.value);
   for (let i = 0; i < count; i++) {
     const div = document.createElement("div");
     div.innerHTML = `
       <label>Player ${i + 1} Name: <input required name="name-${i}" /></label>
-      <label>Colour: <input type="color" name="color-${i}" value="#${Math.floor(Math.random()*16777215).toString(16)}" /></label>
+      <label>Color: <input type="color" name="color-${i}" value="#${Math.floor(Math.random()*0xffffff).toString(16)}" /></label>
       <label>Emoji:
         <select name="emoji-${i}">
-          ${emojiOptions.map(e => `<option value="${e}">${e}</option>`).join("")}
+          ${emojiList.map(e => `<option value="${e}">${e}</option>`).join("")}
         </select>
       </label>
     `;
-    playerConfigDiv.appendChild(div);
+    config.appendChild(div);
   }
 }
-updatePlayerInputs();
 
-function startGame(e) {
+function initGame(e) {
   e.preventDefault();
-  const count = parseInt(form.playerCount.value);
-  players = [];
   trails.clear();
+  players = [];
+  const count = parseInt(form.playerCount.value);
+
   for (let i = 0; i < count; i++) {
     const name = form[`name-${i}`].value;
     const color = form[`color-${i}`].value;
     const emoji = form[`emoji-${i}`].value;
-    const controls = getControls(i);
-
-    const startPos = getStartPos(i, count);
-    players.push({
-      name, color, emoji, x: startPos.x, y: startPos.y,
-      dir: { x: 0, y: 0 }, alive: true, controls
-    });
+    const controls = getControlScheme(i);
+    const pos = getStart(i, count);
+    players.push({ name, color, emoji, ...pos, dir: { x: 0, y: 0 }, alive: true, controls });
     scores[name] = scores[name] || 0;
   }
 
-  loadingScreen.classList.add("hidden");
-  gameContainer.classList.remove("hidden");
-  renderScoreboard();
-  countdown(3, startLoop);
+  loading.classList.add("hidden");
+  gameUI.classList.remove("hidden");
+  drawScore();
+  countdown(3, startGameLoop);
 }
 
-function getControls(index) {
-  const schemes = [
-    { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] },
-    { w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] },
-    { i: [0, -1], k: [0, 1], j: [-1, 0], l: [1, 0] },
-    { t: [0, -1], g: [0, 1], f: [-1, 0], h: [1, 0] },
+function getControlScheme(i) {
+  const controlSets = [
+    { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] },
+    { w:[0,-1], s:[0,1], a:[-1,0], d:[1,0] },
+    { i:[0,-1], k:[0,1], j:[-1,0], l:[1,0] },
+    { t:[0,-1], g:[0,1], f:[-1,0], h:[1,0] }
   ];
-  return schemes[index];
+  return controlSets[i];
 }
 
-function getStartPos(i, count) {
-  const edgeOffset = 4;
+function getStart(i, total) {
+  const offset = 5;
   const pos = [
-    { x: edgeOffset, y: edgeOffset },
-    { x: GRID_SIZE - edgeOffset, y: GRID_SIZE - edgeOffset },
-    { x: edgeOffset, y: GRID_SIZE - edgeOffset },
-    { x: GRID_SIZE - edgeOffset, y: edgeOffset },
+    { x: offset, y: offset },
+    { x: GRID - offset, y: GRID - offset },
+    { x: offset, y: GRID - offset },
+    { x: GRID - offset, y: offset }
   ];
   return pos[i];
 }
@@ -90,19 +88,16 @@ function getStartPos(i, count) {
 function countdown(n, cb) {
   if (n === 0) {
     countdownDiv.textContent = "GO!";
-    setTimeout(() => {
-      countdownDiv.textContent = "";
-      cb();
-    }, 500);
+    setTimeout(() => { countdownDiv.textContent = ""; cb(); }, 800);
   } else {
     countdownDiv.textContent = n;
     setTimeout(() => countdown(n - 1, cb), 1000);
   }
 }
 
-function startLoop() {
+function startGameLoop() {
   document.addEventListener("keydown", handleKey);
-  intervalId = setInterval(update, UPDATE_INTERVAL);
+  intervalId = setInterval(tick, 1000 / SPEED);
 }
 
 function handleKey(e) {
@@ -116,62 +111,50 @@ function handleKey(e) {
   });
 }
 
-function update() {
+function tick() {
   players.forEach(p => {
     if (!p.alive || (p.dir.x === 0 && p.dir.y === 0)) return;
     p.x += p.dir.x;
     p.y += p.dir.y;
     const key = `${p.x},${p.y}`;
-    if (p.x < 0 || p.y < 0 || p.x >= GRID_SIZE || p.y >= GRID_SIZE || trails.has(key)) {
+    if (p.x < 0 || p.y < 0 || p.x >= GRID || p.y >= GRID || trails.has(key)) {
       p.alive = false;
-      explode(p.x, p.y, p.color);
+      explodeSFX.currentTime = 0; explodeSFX.play();
     } else {
       trails.add(key);
     }
   });
 
+  render();
   const alive = players.filter(p => p.alive);
   if (alive.length <= 1) {
-    if (alive[0]) scores[alive[0].name]++;
     clearInterval(intervalId);
-    setTimeout(() => {
-      renderScoreboard();
-      startGame({ preventDefault: () => {} });
-    }, 2000);
+    if (alive[0]) {
+      scores[alive[0].name]++;
+      winSFX.currentTime = 0; winSFX.play();
+    }
+    setTimeout(() => initGame({ preventDefault: () => {} }), 2000);
   }
-
-  render();
 }
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   trails.forEach(pos => {
-    const [x, y] = pos.split(",").map(Number);
-    ctx.fillStyle = "#333";
-    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    const [x, y] = pos.split(',').map(Number);
+    ctx.fillStyle = "#222";
+    ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   });
 
   players.forEach(p => {
     if (!p.alive) return;
+    ctx.font = `${TILE}px serif`;
     ctx.fillStyle = p.color;
-    ctx.font = `${TILE_SIZE}px sans-serif`;
-    ctx.fillText(p.emoji, p.x * TILE_SIZE, (p.y + 1) * TILE_SIZE);
+    ctx.fillText(p.emoji, p.x * TILE, (p.y + 1) * TILE - 3);
   });
 }
 
-function renderScoreboard() {
-  scoreboardDiv.innerHTML = Object.entries(scores)
-    .map(([name, score]) => `${name}: ${score}`)
+function drawScore() {
+  scoreboard.innerHTML = Object.entries(scores)
+    .map(([name, score]) => `<span>${name}: ${score}</span>`)
     .join(" | ");
-}
-
-function explode(x, y, color) {
-  for (let i = 0; i < 5; i++) {
-    setTimeout(() => {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x * TILE_SIZE + 10, y * TILE_SIZE + 10, i * 3, 0, Math.PI * 2);
-      ctx.fill();
-    }, i * 50);
-  }
 }
