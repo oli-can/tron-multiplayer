@@ -1,0 +1,59 @@
+body {
+  margin: 0;
+  font-family: 'Arial Rounded MT Bold', sans-serif;
+  background: #111;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-top: 40px;
+  color: #0ff;
+  text-shadow: 0 0 10px #0ff;
+}
+
+#loading-screen, #game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+form {
+  margin-top: 20px;
+  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+label, input, select {
+  font-size: 1.2rem;
+}
+
+.hidden {
+  display: none;
+}
+
+canvas {
+  border: none;
+  background: #000;
+  box-shadow: 0 0 20px #0ff;
+  margin-top: 20px;
+}
+
+#countdown {
+  font-size: 4rem;
+  color: #0ff;
+  position: absolute;
+  top: 50px;
+}
+
+#scoreboard {
+  margin-top: 20px;
+  font-size: 1.5rem;
+  display: flex;
+  gap: 20px;
+}
